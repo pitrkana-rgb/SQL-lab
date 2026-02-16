@@ -1,0 +1,52 @@
+/*
+Author: Petr Kana
+Source tables:
+  - ECE_DWH.PER.JFP_SESSION
+  - ECE_DWH.DM_NPV.API_NPV_JFP_INIT_V
+  - ECE_DWH.PER.JFP_SAPCONTACT
+Logic:
+  - Select latest record per SESSIONID (MAX COUNTER)
+  - Filter USERDEPARTMENTID = 2
+  - Exclude CAMPAIGNID 587
+*/
+
+SELECT
+    S.CREATEDNOTIME AS datum_kontaktu,
+    S.[COUNTER] AS krok_jfp,
+    S.SESSIONID AS session_id,
+    S.CALLID AS call_id,
+    S.SAPCONTACTID AS sapcontact_id,
+    S.COMMUNICATIONCHANNELTYPEID AS channel_type_id,
+    S.COMMUNICATIONCHANNELTYPENAME AS channel_name,
+    S.CAMPAIGNID AS campaign_id,
+    S.CAMPAIGNNAME AS campaign_name,
+    SC.CONTACT_CATEGORY_NAME AS sap_kategorie,
+    SC.CONTACT_SUBCATEGORY_NAME AS ssq_kategorie,
+    S.COMMUNICATIONAGEINHOURS AS doba_reseni_hodin,
+    S.USERDEPARTMENTNAME AS organizace,
+    S.USERTEAMNAME AS tym,
+    S.USERKIDID AS kid_pracovnika,
+    S.CUSTOMEROP AS obchodni_partner,
+    S.CUSTOMEREANEIC AS odberne_misto,
+    S.SESSIONGLOBALSTATUSNAME AS globalni_stav,
+    NPV.Value1 AS npv_segment
+FROM [ECE_DWH].[PER].[JFP_SESSION] S
+
+JOIN (
+    SELECT 
+        SESSIONID, 
+        MAX([COUNTER]) AS MaxCounter
+    FROM [ECE_DWH].[PER].[JFP_SESSION]
+    GROUP BY SESSIONID
+) AS MaxRecords 
+    ON S.SESSIONID = MaxRecords.SESSIONID 
+   AND S.[COUNTER] = MaxRecords.MaxCounter
+
+JOIN [ECE_DWH].[DM_NPV].[API_NPV_JFP_INIT_V] NPV
+    ON S.CUSTOMEROP = NPV.BUSINESSPARTNER
+
+LEFT JOIN [ECE_DWH].[PER].[JFP_SAPCONTACT] SC
+    ON S.SESSIONID = SC.SESSIONID
+
+WHERE S.USERDEPARTMENTID = '2'
+  AND S.CAMPAIGNID <> '587';
